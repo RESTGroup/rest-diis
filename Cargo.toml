@@ -1,0 +1,15 @@
+[package]
+name = "rstsr-diis"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# tensor libraries
+rstsr = { path = "/home/a/Git-Repo/rstsr/rstsr", default-features = false, features = ["linalg", "rayon", "std"] }
+rstsr-openblas = { path = "/home/a/Git-Repo/rstsr/rstsr-openblas", features = ["linalg", "openmp"] }
+# struct builder with default values
+derive_builder = { version = "0.20" }
+# logging support
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["local-time"] }
+log = { version = "0.4" }
