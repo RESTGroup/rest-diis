@@ -11,6 +11,8 @@
 
 ## 使用方法
 
+**需要注意！目前 API 不稳定，特别是 `DIIS::new` 函数可能会作改动，以及将来对硬盘和其他后端支持会根本性地改变内部 struct 的定义。**
+
 ```rust
 // 默认的 DIIS 选项
 let diis_flags = rstsr_diis::DIISFlagsBuilder::default().build().unwrap();
