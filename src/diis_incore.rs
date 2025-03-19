@@ -32,6 +32,10 @@ pub struct DIISIncoreFlags {
     /// DIIS pop strategy.
     #[builder(default = "DIISPopStrategy::ErrDiagonal")]
     pub pop_strategy: DIISPopStrategy,
+
+    /// Chunk size for inner dot.
+    #[builder(default = "4194304")]
+    pub chunk: usize,
 }
 
 pub struct DIISIncoreIntermediates<T> {
@@ -91,20 +95,14 @@ impl DIISIncore<T> {
         let mut ovlp = rt::zeros(([flags.space + 1, flags.space + 1], device));
         ovlp.i_mut((0, 1..)).fill(T::from(1.0));
         ovlp.i_mut((1.., 0)).fill(T::from(1.0));
-        let intermediates = DIISIncoreIntermediates {
-            prev: None,
-            ovlp,
-            vec_prev: None,
-            err_map: HashMap::new(),
-            vec_map: HashMap::new(),
-            niter_map: HashMap::new(),
-        };
+        let intermediates =
+            DIISIncoreIntermediates { prev: None, ovlp, vec_prev: None, err_map: HashMap::new(), vec_map: HashMap::new(), niter_map: HashMap::new() };
 
         Self { flags, intermediates }
     }
 
     /// Compute the head by iteration number.
-    pub fn get_head_by_iteration(&mut self) -> Option<usize> {
+    pub fn get_head_by_iteration(&self) -> Option<usize> {
         let cur_space = self.intermediates.err_map.len();
         let head = if cur_space == 0 {
             // No previously inserted vectors.
@@ -124,7 +122,7 @@ impl DIISIncore<T> {
     }
 
     /// Compute the head by diagonal of overlap.
-    pub fn get_head_by_diagonal(&mut self) -> Option<usize> {
+    pub fn get_head_by_diagonal(&self) -> Option<usize> {
         let cur_space = self.intermediates.err_map.len();
         let head = if cur_space == 0 {
             // No previously inserted vectors.
@@ -151,7 +149,7 @@ impl DIISIncore<T> {
     }
 
     /// Compute the next index to be inserted.
-    pub fn get_head(&mut self) -> Option<usize> {
+    pub fn get_head(&self) -> Option<usize> {
         // get the head if not internally defined
         // if head is not defined, we will define it by the given strategy.
         match self.flags.pop_strategy {
@@ -186,13 +184,7 @@ impl DIISIncore<T> {
     }
 
     /// Insert a vector to the DIIS space.
-    pub fn insert(
-        &mut self,
-        vec: Tsr<T>,
-        head: Option<usize>,
-        err: Option<Tsr<T>>,
-        iteration: Option<usize>,
-    ) {
+    pub fn insert(&mut self, vec: Tsr<T>, head: Option<usize>, err: Option<Tsr<T>>, iteration: Option<usize>) {
         // 1. unwrap head
         let head = head.or(self.get_head());
         let prev = self.intermediates.prev;
@@ -211,6 +203,15 @@ impl DIISIncore<T> {
         } else {
             head
         };
+
+        // get index that will be inserted
+        let head = head.unwrap_or(1);
+        log::trace!("DIIS current index to be inserted: {:?}", head);
+
+        // pop head if necessary
+        if self.intermediates.err_map.len() >= self.flags.space {
+            self.pop_head(Some(head));
+        }
 
         // 2. prepare error and vector
         let vec = vec.into_shape(-1);
@@ -243,32 +244,20 @@ impl DIISIncore<T> {
         });
         log::trace!("DIIS internal iteration counter: {:?}", iteration);
 
-        // 4. pop head if necessary
-        if self.intermediates.err_map.len() >= self.flags.space {
-            self.pop_head(head);
-        }
+        // 4. insert the vector and update information
+        self.intermediates.err_map.insert(head, err);
+        self.intermediates.vec_map.insert(head, vec);
+        self.intermediates.niter_map.insert(head, iteration);
+        self.intermediates.prev = Some(head);
 
-        // 5. get index that will be inserted
-        let cur = head.unwrap_or(1);
-        log::trace!("DIIS current index to be inserted: {:?}", cur);
-
-        // 6. insert the vector and update information
-        self.intermediates.err_map.insert(cur, err);
-        self.intermediates.vec_map.insert(cur, vec);
-        self.intermediates.niter_map.insert(cur, iteration);
-        self.intermediates.prev = Some(cur);
-
-        // 7. update the overlap matrix
-        #[allow(unused_mut)]
-        let mut ovlp = &mut self.intermediates.ovlp;
-        let err_cur = self.intermediates.err_map.get(&cur).unwrap();
+        // 5. update the overlap matrix
+        let ovlp = &mut self.intermediates.ovlp;
+        let err_cur = self.intermediates.err_map.get(&head).unwrap();
         let num_space = self.intermediates.err_map.len();
-        for idx in 1..=num_space {
-            let err = self.intermediates.err_map.get(&idx).unwrap();
-            let ovlp_val = (err_cur % err).to_scalar();
-            ovlp[[cur, idx]] = ovlp_val;
-            ovlp[[idx, cur]] = ovlp_val.conj();
-        }
+        let err_list = (1..=num_space).into_iter().map(|i| self.intermediates.err_map.get(&i).unwrap()).collect::<Vec<_>>();
+        let ovlp_cur = Self::incore_inner_dot(err_cur, &err_list, self.flags.chunk);
+        ovlp.i_mut((head, 1..num_space + 1)).assign(&ovlp_cur);
+        ovlp.i_mut((1..num_space + 1, head)).assign(&ovlp_cur.conj());
     }
 
     /// Extrapolate the vector from the DIIS space.
@@ -326,8 +315,7 @@ impl DIISIncore<T> {
         let mut vec = self.intermediates.vec_map.get(&1).unwrap().zeros_like();
         for idx in 1..=num_space {
             let vec_idx = self.intermediates.vec_map.get(&idx).unwrap();
-            let c_idx = c[[idx]];
-            vec += vec_idx * c_idx;
+            vec += vec_idx * c[[idx]];
         }
         log::trace!("DIIS extrapolated vector\n{:10.5}", vec);
 
@@ -347,11 +335,31 @@ impl DIISIncore<T> {
 
         vec
     }
+
+    /// Perform inner dot for obtaining overlap.
+    ///
+    /// This performs `a.conj() % b` by chunk.
+    /// Note that `a.conj()` will allocate a new memory buffer, so this also costs some L3 cache bandwidth.
+    #[allow(clippy::useless_conversion)]
+    pub fn incore_inner_dot(a: &Tsr<T>, b_list: &[&Tsr<T>], chunk: usize) -> Tsr<T> {
+        let size = a.size();
+        let nlist = b_list.len();
+        let mut result = rt::zeros(([nlist], a.device()));
+
+        for i in (0..size).step_by(chunk) {
+            let a = a.slice(i..i + chunk).conj();
+            for (n, b) in b_list.iter().enumerate() {
+                let b = b.slice(i..i + chunk);
+                result[[n]] += (&a % b).to_scalar();
+            }
+        }
+        result
+    }
 }
 
 #[duplicate::duplicate_item(T; [f32]; [f64]; [Complex::<f32>]; [Complex::<f64>])]
 impl DIISAPI<Tsr<T>> for DIISIncore<T> {
-    fn get_head(&mut self) -> Option<usize> {
+    fn get_head(&self) -> Option<usize> {
         self.get_head()
     }
 
@@ -359,13 +367,7 @@ impl DIISAPI<Tsr<T>> for DIISIncore<T> {
         self.pop_head(head);
     }
 
-    fn insert(
-        &mut self,
-        vec: Tsr<T>,
-        head: Option<usize>,
-        err: Option<Tsr<T>>,
-        iteration: Option<usize>,
-    ) {
+    fn insert(&mut self, vec: Tsr<T>, head: Option<usize>, err: Option<Tsr<T>>, iteration: Option<usize>) {
         self.insert(vec, head, err, iteration);
     }
 

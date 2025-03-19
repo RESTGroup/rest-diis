@@ -1,12 +1,13 @@
-pub mod incore_diis;
+#![allow(clippy::deref_addrof)]
+pub mod diis_incore;
+pub mod diis_semi_incore;
 pub mod util;
 
 pub mod prelude {
-    pub use crate::incore_diis::{
-        DIISIncore, DIISIncoreFlags, DIISIncoreFlagsBuilder, DIISIncoreFlagsBuilderError,
-    };
-    pub(crate) use crate::util::logger_init;
+    pub use crate::diis_incore::{DIISIncore, DIISIncoreFlags, DIISIncoreFlagsBuilder, DIISIncoreFlagsBuilderError};
+    pub use crate::diis_semi_incore::{DIISSemiIncore, DIISSemiIncoreFlags, DIISSemiIncoreFlagsBuilder, DIISSemiIncoreFlagsBuilderError};
     pub use crate::util::{DIISAPI, DIISPopStrategy};
+    pub(crate) use crate::util::{logger_init, ndarray_to_rstsr};
 }
 
 pub mod prelude_dev {

@@ -10,11 +10,22 @@ rstsr-openblas = { path = "/home/a/Git-Repo/rstsr/rstsr-openblas", features = ["
 rstsr-blas-traits = { path = "/home/a/Git-Repo/rstsr/rstsr-blas-traits" }
 rstsr-dtype-traits = { path = "/home/a/Git-Repo/rstsr/rstsr-dtype-traits" }
 num = { version = "0.4" }
+
+# hdf5 support
+hdf5-metno = { version = "0.10" }
+ndarray = { version = "0.16" }
+tempfile = { version = "3.19" }
+
 # struct builder with default values
 derive_builder = { version = "0.20" }
+
 # logging support
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["local-time"] }
 log = { version = "0.4" }
+
 # macro for duplicate
 duplicate = { version = "2.0" }
+
+[features]
+sequential_io = []
