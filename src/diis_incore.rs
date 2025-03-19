@@ -191,7 +191,7 @@ impl DIISIncore<T> {
 
         // specical case: if head is the same to prev, then it means the last extrapolated vector has the maximum error;
         // then the function will infinite loops if remove the maximum error vector; so some code need to avoid this case.
-        let head = if head == prev {
+        let head = if head == prev && head.is_some() {
             log::warn!(concat!(
                 "DIIS error seems not good.\n",
                 "The DIIS head is the same to the previous vector.\n",

@@ -215,7 +215,7 @@ impl DIISSemiIncore<T> {
 
         // specical case: if head is the same to prev, then it means the last extrapolated vector has the maximum error;
         // then the function will infinite loops if remove the maximum error vector; so some code need to avoid this case.
-        let head = if head == prev {
+        let head = if head == prev && head.is_some() {
             log::warn!(concat!(
                 "DIIS error seems not good.\n",
                 "The DIIS head is the same to the previous vector.\n",
@@ -248,7 +248,6 @@ impl DIISSemiIncore<T> {
         };
 
         // create current vec and err datasets
-        println!("DEBUG: hdf5_tag_vec {:?}", scratch_hdf5.dataset(hdf5_tag_vec.as_str()));
         let vec_dataset = match scratch_hdf5.dataset(hdf5_tag_vec.as_str()) {
             Ok(dataset) => dataset,
             Err(_) => scratch_hdf5.new_dataset_builder().empty::<T>().shape([size_vec]).create(hdf5_tag_vec.as_str()).unwrap(),
