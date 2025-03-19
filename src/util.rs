@@ -1,5 +1,4 @@
 use crate::prelude_dev::*;
-use ndarray::IxDyn;
 use rstsr::prelude::*;
 use rstsr_openblas::prelude_dev::DeviceCreationAnyAPI;
 
@@ -39,6 +38,10 @@ pub(crate) fn logger_init(verbose: usize) {
     log::set_max_level(level);
 }
 
+/// Please note that this function is not intended to be used in production code.
+///
+/// - 1-D case only
+/// - offset is not considered
 pub(crate) fn ndarray_to_rstsr<T, B, D>(arr: ndarray::Array<T, D>, device: &B) -> Tensor<T, B>
 where
     D: ndarray::Dimension,

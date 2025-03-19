@@ -12,7 +12,7 @@ rstsr-dtype-traits = { path = "/home/a/Git-Repo/rstsr/rstsr-dtype-traits" }
 num = { version = "0.4" }
 
 # hdf5 support
-hdf5-metno = { version = "0.10" }
+hdf5-metno = { version = "0.10", features = ["complex"] }
 ndarray = { version = "0.16" }
 tempfile = { version = "3.19" }
 

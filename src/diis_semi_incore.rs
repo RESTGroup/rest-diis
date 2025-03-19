@@ -1,8 +1,6 @@
-use std::cell::UnsafeCell;
-
 use crate::prelude_dev::*;
-
 use hdf5_metno::Dataset;
+use num::Complex;
 use num::complex::ComplexFloat;
 use rstsr::prelude::*;
 use rstsr_openblas::DeviceOpenBLAS;
@@ -93,7 +91,8 @@ pub struct DIISSemiIncore<T> {
 }
 
 #[allow(clippy::useless_conversion)]
-impl DIISSemiIncore<f64> {
+#[duplicate::duplicate_item(T; [f32]; [f64]; [Complex::<f32>]; [Complex::<f64>])]
+impl DIISSemiIncore<T> {
     pub fn new(flags: DIISSemiIncoreFlags, device: &DeviceOpenBLAS) -> Self {
         // initialize logger
         logger_init(flags.verbose);
@@ -109,8 +108,8 @@ impl DIISSemiIncore<f64> {
 
         // initialize intermediates
         let mut ovlp = rt::zeros(([flags.space + 1, flags.space + 1], device));
-        ovlp.i_mut((0, 1..)).fill(f64::from(1.0));
-        ovlp.i_mut((1.., 0)).fill(f64::from(1.0));
+        ovlp.i_mut((0, 1..)).fill(T::from(1.0));
+        ovlp.i_mut((1.., 0)).fill(T::from(1.0));
         let intermediates = DIISSemiIncoreIntermediates {
             scratch_file,
             scratch_hdf5,
@@ -202,13 +201,13 @@ impl DIISSemiIncore<f64> {
 
             // Update the overlap matrix.
             let ovlp = &mut self.intermediates.ovlp;
-            ovlp.i_mut((head, 1..)).fill(f64::from(0.0));
-            ovlp.i_mut((1.., head)).fill(f64::from(0.0));
+            ovlp.i_mut((head, 1..)).fill(T::from(0.0));
+            ovlp.i_mut((1.., head)).fill(T::from(0.0));
         }
     }
 
     /// Insert a vector to the DIIS space.
-    pub fn insert(&mut self, vec: Tsr<f64>, head: Option<usize>, err: Option<Tsr<f64>>, iteration: Option<usize>) {
+    pub fn insert(&mut self, vec: Tsr<T>, head: Option<usize>, err: Option<Tsr<T>>, iteration: Option<usize>) {
         // 1. unwrap head and something used in this function
         let head = head.or(self.get_head());
         let prev = self.intermediates.prev;
@@ -252,11 +251,11 @@ impl DIISSemiIncore<f64> {
         println!("DEBUG: hdf5_tag_vec {:?}", scratch_hdf5.dataset(hdf5_tag_vec.as_str()));
         let vec_dataset = match scratch_hdf5.dataset(hdf5_tag_vec.as_str()) {
             Ok(dataset) => dataset,
-            Err(_) => scratch_hdf5.new_dataset_builder().empty::<f64>().shape([size_vec]).create(hdf5_tag_vec.as_str()).unwrap(),
+            Err(_) => scratch_hdf5.new_dataset_builder().empty::<T>().shape([size_vec]).create(hdf5_tag_vec.as_str()).unwrap(),
         };
         let err_dataset = match scratch_hdf5.dataset(hdf5_tag_err.as_str()) {
             Ok(dataset) => dataset,
-            Err(_) => scratch_hdf5.new_dataset_builder().empty::<f64>().shape([size_err]).create(hdf5_tag_err.as_str()).unwrap(),
+            Err(_) => scratch_hdf5.new_dataset_builder().empty::<T>().shape([size_err]).create(hdf5_tag_err.as_str()).unwrap(),
         };
 
         // reshape to 1-D
@@ -278,7 +277,7 @@ impl DIISSemiIncore<f64> {
                     let chunk = self.flags.chunk;
                     for i in (0..size_vec).step_by(self.flags.chunk) {
                         let i_max = std::cmp::min(i + chunk, size_vec);
-                        let vec_prev = ndarray_to_rstsr(vec_prev_dataset.read_slice_1d::<f64, _>(i..i_max).unwrap(), &device);
+                        let vec_prev = ndarray_to_rstsr(vec_prev_dataset.read_slice_1d::<T, _>(i..i_max).unwrap(), &device);
                         let err = &vec.i(i..i_max) - vec_prev;
                         err_dataset.write_slice(err.raw(), i..i_max).unwrap();
                     }
@@ -318,7 +317,7 @@ impl DIISSemiIncore<f64> {
     }
 
     /// Extrapolate the vector from the DIIS space.
-    pub fn extrapolate(&mut self) -> Tsr<f64> {
+    pub fn extrapolate(&mut self) -> Tsr<T> {
         let device = self.intermediates.ovlp.device().clone();
         // 1. get the number of vectors in the DIIS space
         let num_space = self.intermediates.err_map.len();
@@ -327,7 +326,7 @@ impl DIISSemiIncore<f64> {
             if self.intermediates.vec_prev.is_some() {
                 log::trace!("No vectors in the DIIS space.");
                 log::trace!("Return the vector user previously requested.");
-                return ndarray_to_rstsr(self.intermediates.vec_prev.as_ref().unwrap().read_1d::<f64>().unwrap(), &device);
+                return ndarray_to_rstsr(self.intermediates.vec_prev.as_ref().unwrap().read_1d::<T>().unwrap(), &device);
             } else {
                 // no vectors in the DIIS space and no zero-th vector
                 // this is considered as error
@@ -340,7 +339,7 @@ impl DIISSemiIncore<f64> {
             log::trace!("DIIS space is not large enough to be extrapolated.");
             log::trace!("Return the vector user previously requested.");
             let prev = self.intermediates.prev.unwrap();
-            return ndarray_to_rstsr(self.intermediates.vec_map.get(&prev).unwrap().read_1d::<f64>().unwrap(), &device);
+            return ndarray_to_rstsr(self.intermediates.vec_map.get(&prev).unwrap().read_1d::<T>().unwrap(), &device);
         }
 
         // 2. get the coefficients
@@ -350,7 +349,7 @@ impl DIISSemiIncore<f64> {
         let (w, v) = rt::linalg::eigh(ovlp);
         log::debug!("DIIS w\n{:16.10}", w);
 
-        let eps = 30.0 * <f64 as ComplexFloat>::Real::EPSILON;
+        let eps = 30.0 * <T as ComplexFloat>::Real::EPSILON;
         if w.i(1..).min() < eps {
             log::warn!("DIIS extrapolation encounters singular overlap matrix.");
         }
@@ -358,12 +357,12 @@ impl DIISSemiIncore<f64> {
         // set the small eigenvalues to inf, then take repciprocals
         let w = w.mapv(|x| {
             let val = if x.abs() < eps { 0.0 } else { 1.0 / x };
-            f64::from(val)
+            T::from(val)
         });
 
         // g: [1, 0, 0, ..., 0]
-        let mut g: Tsr<f64> = rt::zeros(([num_space + 1], ovlp.device()));
-        g[[0]] = f64::from(1.0);
+        let mut g: Tsr<T> = rt::zeros(([num_space + 1], ovlp.device()));
+        g[[0]] = T::from(1.0);
 
         // DIIS coefficients
         let c = (v.view() * w) % v.t() % g;
@@ -380,7 +379,7 @@ impl DIISSemiIncore<f64> {
     }
 
     /// Update the DIIS space.
-    pub fn update(&mut self, vec: Tsr<f64>, err: Option<Tsr<f64>>, iteration: Option<usize>) -> Tsr<f64> {
+    pub fn update(&mut self, vec: Tsr<T>, err: Option<Tsr<T>>, iteration: Option<usize>) -> Tsr<T> {
         let time = std::time::Instant::now();
 
         self.insert(vec, None, err, iteration);
@@ -404,17 +403,17 @@ impl DIISSemiIncore<f64> {
     /// Perform inner dot for obtaining overlap.
     ///
     /// This performs `a.conj() % b` by chunk.
-    pub fn semi_incore_inner_dot(a: &Dataset, b_list: &[&Dataset], device: &DeviceOpenBLAS, chunk: usize) -> Tsr<f64> {
+    pub fn semi_incore_inner_dot(a: &Dataset, b_list: &[&Dataset], device: &DeviceOpenBLAS, chunk: usize) -> Tsr<T> {
         #[cfg(feature = "sequential_io")]
         {
             let size = a.size();
             let nlist = b_list.len();
-            let mut result: Tsr<f64> = rt::zeros(([nlist], device));
+            let mut result: Tsr<T> = rt::zeros(([nlist], device));
 
             for i in (0..size).step_by(chunk) {
                 let i_max = std::cmp::min(i + chunk, size);
-                let a = ndarray_to_rstsr(a.read_slice_1d::<f64, _>(i..i_max).unwrap(), device);
-                let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<f64, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
+                let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device);
+                let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
 
                 for (n, b) in b_list.iter().enumerate() {
                     result[[n]] += (&a % b).to_scalar();
@@ -427,14 +426,14 @@ impl DIISSemiIncore<f64> {
         {
             let size = a.size();
             let nlist = b_list.len();
-            let result: Tsr<f64> = rt::zeros(([nlist], device));
+            let result: Tsr<T> = rt::zeros(([nlist], device));
 
             std::thread::scope(|s| {
                 let mut task = s.spawn(|| {});
                 for i in (0..size).step_by(chunk) {
                     let i_max = std::cmp::min(i + chunk, size);
-                    let a = ndarray_to_rstsr(a.read_slice_1d::<f64, _>(i..i_max).unwrap(), device);
-                    let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<f64, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
+                    let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device);
+                    let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
                     let result = result.view();
 
                     task.join().unwrap();
@@ -450,14 +449,17 @@ impl DIISSemiIncore<f64> {
         }
     }
 
-    pub fn semi_incore_update_vec(a: Tsr<f64>, b_list: &[&Dataset], c: Tsr<f64>, chunk: usize) -> Tsr<f64> {
+    /// Perform update for the vector.
+    ///
+    /// This performs `extrapolated = sum(i) vec[i] * c[i]` by chunk.
+    pub fn semi_incore_update_vec(a: Tsr<T>, b_list: &[&Dataset], c: Tsr<T>, chunk: usize) -> Tsr<T> {
         #[cfg(feature = "sequential_io")]
         {
             let mut a = a;
             let size = a.size();
             for i in (0..size).step_by(chunk) {
                 let i_max = std::cmp::min(i + chunk, size);
-                let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<f64, _>(i..i_max).unwrap(), a.device())).collect::<Vec<_>>();
+                let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), a.device())).collect::<Vec<_>>();
                 for (n, b) in b_list.iter().enumerate() {
                     *&mut a.i_mut(i..i_max) += b * c[[n]];
                 }
@@ -474,7 +476,7 @@ impl DIISSemiIncore<f64> {
                 let mut task = s.spawn(|| {});
                 for i in (0..size).step_by(chunk) {
                     let i_max = std::cmp::min(i + chunk, size);
-                    let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<f64, _>(i..i_max).unwrap(), &device)).collect::<Vec<_>>();
+                    let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), &device)).collect::<Vec<_>>();
                     let a_sliced = a.i(i..i_max);
                     let c = c.view();
 
@@ -492,7 +494,7 @@ impl DIISSemiIncore<f64> {
     }
 }
 
-#[duplicate::duplicate_item(T; [f64])]
+#[duplicate::duplicate_item(T; [f32]; [f64]; [Complex::<f32>]; [Complex::<f64>])]
 impl DIISAPI<Tsr<T>> for DIISSemiIncore<T> {
     fn get_head(&self) -> Option<usize> {
         self.get_head()
@@ -519,7 +521,7 @@ impl DIISAPI<Tsr<T>> for DIISSemiIncore<T> {
 fn playground() {
     let flags = DIISSemiIncoreFlagsBuilder::default().build().unwrap();
     let device = DeviceOpenBLAS::default();
-    let diis = DIISSemiIncore::new(flags, &device);
+    let diis = DIISSemiIncore::<f64>::new(flags, &device);
 
     let scratch_hdf5 = diis.intermediates.scratch_hdf5;
     let db = scratch_hdf5.new_dataset_builder();
