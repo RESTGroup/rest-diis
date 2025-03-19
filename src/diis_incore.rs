@@ -308,7 +308,7 @@ impl DIISIncore<T> {
         g[[0]] = T::from(1.0);
 
         // DIIS coefficients
-        let c = (v.view() * w) % v.t() % g;
+        let c = (v.view() * w) % v.t().conj() % g;
         log::debug!("DIIS coeff\n{:10.5}", c);
 
         // 3. extrapolate the vector
@@ -340,7 +340,6 @@ impl DIISIncore<T> {
     ///
     /// This performs `a.conj() % b` by chunk.
     /// Note that `a.conj()` will allocate a new memory buffer, so this also costs some L3 cache bandwidth.
-    #[allow(clippy::useless_conversion)]
     pub fn incore_inner_dot(a: &Tsr<T>, b_list: &[&Tsr<T>], chunk: usize) -> Tsr<T> {
         let size = a.size();
         let nlist = b_list.len();

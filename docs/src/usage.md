@@ -1,3 +1,3 @@
-# REST-DIIS 使用方法
+# REST-DIIS 使用说明
 
 

@@ -16,7 +16,7 @@ pub type Tsr<T> = Tensor<T, DeviceOpenBLAS, IxD>;
 /// `x (new) -> (b - b') + x`
 ///
 /// For this case, the iterated `x` can be further extrapolated by DIIS.
-/// - The naive iteration converges in 15 steps.
+/// - The naive iteration converges in 14 steps.
 /// - The DIIS iteration converges in 5 steps.
 fn main() {
     /* #region 1. initialization */

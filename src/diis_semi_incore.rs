@@ -299,13 +299,13 @@ impl DIISSemiIncore<T> {
         });
         log::trace!("DIIS internal iteration counter: {:?}", iteration);
 
-        // 6. insert the vector and update information
+        // 4. insert the vector and update information
         self.intermediates.err_map.insert(head, err_dataset);
         self.intermediates.vec_map.insert(head, vec_dataset);
         self.intermediates.niter_map.insert(head, iteration);
         self.intermediates.prev = Some(head);
 
-        // 7. update the overlap matrix
+        // 5. update the overlap matrix
         let ovlp = &mut self.intermediates.ovlp;
         let err_cur = self.intermediates.err_map.get(&head).unwrap();
         let num_space = self.intermediates.err_map.len();
@@ -364,7 +364,7 @@ impl DIISSemiIncore<T> {
         g[[0]] = T::from(1.0);
 
         // DIIS coefficients
-        let c = (v.view() * w) % v.t() % g;
+        let c = (v.view() * w) % v.t().conj() % g;
         log::debug!("DIIS coeff\n{:10.5}", c);
 
         // 3. extrapolate the vector
@@ -411,7 +411,7 @@ impl DIISSemiIncore<T> {
 
             for i in (0..size).step_by(chunk) {
                 let i_max = std::cmp::min(i + chunk, size);
-                let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device);
+                let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device).conj();
                 let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
 
                 for (n, b) in b_list.iter().enumerate() {
@@ -431,7 +431,7 @@ impl DIISSemiIncore<T> {
                 let mut task = s.spawn(|| {});
                 for i in (0..size).step_by(chunk) {
                     let i_max = std::cmp::min(i + chunk, size);
-                    let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device);
+                    let a = ndarray_to_rstsr(a.read_slice_1d::<T, _>(i..i_max).unwrap(), device).conj();
                     let b_list = b_list.iter().map(|b| ndarray_to_rstsr(b.read_slice_1d::<T, _>(i..i_max).unwrap(), device)).collect::<Vec<_>>();
                     let result = result.view();
 
