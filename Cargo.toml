@@ -1,5 +1,5 @@
 [package]
-name = "rstsr-diis"
+name = "rest-diis"
 version = "0.1.0"
 edition = "2024"
 

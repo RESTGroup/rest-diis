@@ -1,0 +1,6 @@
+[book]
+authors = ["ajz34"]
+language = "en"
+multilingual = false
+src = "src"
+title = "rest-diis"

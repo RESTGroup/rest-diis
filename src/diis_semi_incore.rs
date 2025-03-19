@@ -15,7 +15,7 @@ pub struct DIISSemiIncoreFlags {
     pub space: usize,
 
     /// Minimum number of vectors in the DIIS space for extrapolation.
-    #[builder(default = "3")]
+    #[builder(default = "2")]
     pub min_space: usize,
 
     /// Verbose level.
@@ -27,7 +27,7 @@ pub struct DIISSemiIncoreFlags {
     /// - 2: Info
     /// - 3: Debug
     /// - 4: Trace
-    #[builder(default = "3")]
+    #[builder(default = "2")]
     pub verbose: usize,
 
     /// DIIS pop strategy.
