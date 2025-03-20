@@ -97,7 +97,7 @@ for niter in 0..max_iter {
 
 ### 2.3 程序功能
 
-- 同时支持全内存 (incore) 与半内存 (semi-incore) 功能。其中，**半内存**是指输入的、以及 DIIS 插值输出的向量，都是完全存于内存的；但 DIIS 内部的存储空间使用了硬盘作为媒介。
+- 同时支持全内存 (incore) 与半内存 (semi-incore) 功能。其中，**半内存**是指输入的、以及 DIIS 外推输出的向量，都是完全存于内存的；但 DIIS 内部的存储空间使用了硬盘作为媒介。
     - 全内存的 DIIS 类型是 `DIISIncore`，设置参数的构造程序类型是 `DIISIncoreFlagsBuilder`。
     - 半内存的 DIIS 类型是 `DIISSemiIncore`，设置参数的构造程序类型是 `DIISSemiIncoreFlagsBuilder`。
     - 目前我们还没有实现全磁盘 (outcore) 的功能。
@@ -106,8 +106,8 @@ for niter in 0..max_iter {
 - 重要的设置参数 (flags)：
     - 不同的 DIIS 示例具有不同的设置参数类型，这些参数类型目前还互不相通。
     - `space`：DIIS 空间大小。该设置一方面并非越大越好，另一方面该数值越大、DIIS 内部存储的向量也会越多，对内存或磁盘的需求会越紧张。特别是对 CCSD 等参数量较大的问题，不建议该值设置地太大。
-    - `min_space`：DIIS 初始插值空间大小。该数值需要不小于 1。
-    - `pop_strategy`：DIIS 弹出策略。DIIS 可以看作是一种队列 (queue)，其队列大小是 `space` 参数所决定的。一般来说 DIIS 是作为双向队列 (dqueue) 使用的，即先入先出 (`DIISPopStrategy::Iteration`)；但既然 DIIS 同时还需要计算输入向量的误差，那么我们也可以每次弹出误差最大的向量 (`DIISPopStrategy::ErrDiagonal`)。但由于如果最后一次输入的向量误差较大 (这种情况一般来说是收敛不太成功的情况)，弹出该向量容易导致差值出来的向量总是有较大误差；因而这种情形下，我们会退回到先入先出的策略上。
+    - `min_space`：DIIS 初始外推空间大小。该数值需要不小于 1。
+    - `pop_strategy`：DIIS 弹出策略。DIIS 可以看作是一种队列 (queue)，其队列大小是 `space` 参数所决定的。一般来说 DIIS 是作为双向队列 (dqueue) 使用的，即先入先出 (`DIISPopStrategy::Iteration`)；但既然 DIIS 同时还需要计算输入向量的误差，那么我们也可以每次弹出误差最大的向量 (`DIISPopStrategy::ErrDiagonal`)。但由于如果最后一次输入的向量误差较大 (这种情况一般来说是收敛不太成功的情况)，弹出该向量容易导致外推出来的向量总是有较大误差；因而这种情形下，我们会退回到先入先出的策略上。
     - `chunk`：对于较长的向量，其计算是分批次进行的。该值对走硬盘的 DIIS 更为关键。需要注意，该值的设置并非越大越好，特别是硬盘占用空间小于磁盘的缓冲区域的情景。我们认为一个 chunk 的大小小于 1 MB (128 k FP64) 是比较合适的。
     - `scratch_path`：DIIS 缓存文件的文件夹路径。该选项仅对走硬盘的 DIIS 提供。
 

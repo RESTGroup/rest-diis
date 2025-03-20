@@ -16,7 +16,7 @@ pub type Tsr<T> = Tensor<T, DeviceOpenBLAS, IxD>;
 /// `x (new) -> (b - b') + x`
 ///
 /// For this case, the iterated `x` can be further extrapolated by DIIS.
-/// - The naive iteration converges in 14 steps.
+/// - The naive iteration converges in 19 steps.
 /// - The DIIS iteration converges in 5 steps.
 fn main() {
     /* #region 1. initialization */
@@ -39,7 +39,7 @@ fn main() {
 
     // the task to be solved in this problem
     // f(x) = a @ x / diag(a) - b
-    let f = |x: &Tsr<f64>| &a % x / &d - &b;
+    let f = |x: &Tsr<f64>| &a % x - &b;
 
     /* #endregion 1. initialization */
 
@@ -58,8 +58,8 @@ fn main() {
     while niter < maxiter && f(&x).l2_norm_all() > tol {
         niter += 1;
         x0 = x;
-        let b0 = &a % &x0 / &d;
-        x = (&b - b0) + &x0;
+        let b0 = &a % &x0;
+        x = (&b - b0) / &d + &x0;
         println!("  Naive iter {niter:2}, residue {:10.3e}", f(&x).l2_norm_all());
     }
 
@@ -94,8 +94,8 @@ fn main() {
     while niter < maxiter && f(&x).l2_norm_all() > tol {
         niter += 1;
         x0 = x;
-        let b0 = &a % &x0 / &d;
-        x = (&b - b0) + &x0;
+        let b0 = &a % &x0;
+        x = (&b - b0) / &d + &x0;
         x = diis.update(x, None, None);
         println!("  DIIS iter {niter:2}, residue {:10.3e}", f(&x).l2_norm_all());
     }
@@ -122,7 +122,7 @@ fn main() {
     let mut x0;
 
     // DIIS incore driver
-    let semi_incore = true;
+    let semi_incore = x.size() < 3; // assuming x > 3 requires semi-incore (disk I/O)
     let mut diis: Box<dyn DIISAPI<Tsr<f64>>> = match semi_incore {
         false => Box::new({
             let diis_flags = DIISIncoreFlagsBuilder::default().build().unwrap();
@@ -140,8 +140,8 @@ fn main() {
     while niter < maxiter && f(&x).l2_norm_all() > tol {
         niter += 1;
         x0 = x;
-        let b0 = &a % &x0 / &d;
-        x = (&b - b0) + &x0;
+        let b0 = &a % &x0;
+        x = (&b - b0) / &d + &x0;
         x = diis.update(x, None, None);
         println!("  DIIS iter {niter:2}, residue {:10.3e}", f(&x).l2_norm_all());
     }

@@ -4,3 +4,12 @@ language = "en"
 multilingual = false
 src = "src"
 title = "rest-diis"
+
+[output.html]
+additional-css = ["theme/tabs.css"]
+additional-js = ["theme/tabs.js"]
+
+[preprocessor.katex]
+renderers = ["html"]
+
+[preprocessor.tabs]
