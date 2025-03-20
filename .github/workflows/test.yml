@@ -25,3 +25,4 @@ jobs:
       run: cargo test --examples --verbose -- --nocapture
       env: 
         RSTSR_DEV: 1
+        RUSTFLAGS: -l lapacke -l openblas
