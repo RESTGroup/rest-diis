@@ -21,7 +21,10 @@ let vec_init: Tsr<f64> = ...;
 // 如果误差不好定义可以直接传 None (譬如 CCSD 的情形)
 let err_init: Option<Tsr<f64>> = ...;
 // 向 DIIS 实例插入初猜向量
-// 参数表：初猜向量，初猜误差 (这里没有)，迭代步数标记 (这里没有)
+// 参数表：
+// - 初猜 (或待迭代) 向量
+// - 初猜 (或待迭代) 误差 (有最好，没有可以传 None)
+// - 迭代步数标记 (这里没有，建议传 None)
 diis_driver.update(vec_init, err_init, None)
 
 // 实际迭代
