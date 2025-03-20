@@ -13,7 +13,7 @@ type Tsr<T> = Tensor<T, DeviceOpenBLAS, IxD>;
 // 默认的 DIIS 选项
 let diis_flags = rstsr_diis::DIISIncoreFlagsBuilder::default().build().unwrap();
 // 生成 DIIS 实例
-let mut diis_driver = rstsr_diis::DIISIncore::<Tsr<f64>>::new(diis_flags, &device);
+let mut diis_driver = rstsr_diis::DIISIncore::<f64>::new(diis_flags, &device);
 
 // 初猜向量 (譬如 SCF 下 Fock 矩阵 F_uv；CCSD 下的振幅 t1、t2)
 let vec_init: Tsr<f64> = ...;
