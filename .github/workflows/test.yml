@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Dependencies
-      run: apt install libopenblas-openmp-dev
+      run: sudo apt install -y libopenblas-openmp-dev
     # - name: Build
     #   run: cargo build --verbose
     - name: Run tests
