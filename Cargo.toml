@@ -5,10 +5,8 @@ edition = "2024"
 
 [dependencies]
 # tensor libraries
-rstsr = { path = "/home/a/Git-Repo/rstsr/rstsr", default-features = false, features = ["linalg", "rayon", "std"] }
-rstsr-openblas = { path = "/home/a/Git-Repo/rstsr/rstsr-openblas", features = ["linalg", "openmp"] }
-rstsr-blas-traits = { path = "/home/a/Git-Repo/rstsr/rstsr-blas-traits" }
-rstsr-dtype-traits = { path = "/home/a/Git-Repo/rstsr/rstsr-dtype-traits" }
+rstsr = { version = ">= 0.2", default-features = false, features = ["linalg", "rayon", "std"] }
+rstsr-openblas = { version = ">= 0.2", features = ["linalg", "openmp"] }
 num = { version = "0.4" }
 
 # hdf5 support
