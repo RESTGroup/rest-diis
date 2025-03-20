@@ -17,7 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Dependencies
-      run: sudo apt install -y libopenblas-openmp-dev libhdf5-dev
+      # note that this is a temporary solution, that LAPACKE is not compiled with OpenBLAS
+      run: sudo apt install -y libopenblas-openmp-dev libhdf5-dev liblapacke-dev
     # - name: Build
     #   run: cargo build --verbose
     - name: Run tests
