@@ -156,3 +156,8 @@ fn main() {
 
     /* #endregion 4. diis semi-incore dyn-object showcase */
 }
+
+#[test]
+fn test() {
+    main();
+}

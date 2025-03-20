@@ -515,23 +515,3 @@ impl DIISAPI<Tsr<T>> for DIISSemiIncore<T> {
         self.update(vec, err, iteration)
     }
 }
-
-#[test]
-fn playground() {
-    let flags = DIISSemiIncoreFlagsBuilder::default().build().unwrap();
-    let device = DeviceOpenBLAS::default();
-    let diis = DIISSemiIncore::<f64>::new(flags, &device);
-
-    let scratch_hdf5 = diis.intermediates.scratch_hdf5;
-    let db = scratch_hdf5.new_dataset_builder();
-    let dataset = db.with_data(&[1.0, 2.0, 3.0]).create("1").unwrap();
-    dataset.write_slice(&[1.0, 2.0], ndarray::s![1..3]).unwrap();
-    let data = dataset.read_1d::<f64>().unwrap();
-    println!("{:?}", data);
-    let dataset = scratch_hdf5.new_dataset_builder().empty::<f64>().shape([3]).create("2").unwrap();
-    let data = dataset.read_1d::<f64>().unwrap();
-    println!("{:?}", data);
-    let dataset = scratch_hdf5.new_dataset_builder().empty::<f64>().shape([3]).create("2").unwrap();
-    let data = dataset.read_1d::<f64>().unwrap();
-    println!("{:?}", data);
-}
